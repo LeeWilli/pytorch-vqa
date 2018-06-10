@@ -60,6 +60,11 @@ def main():
 
         i = j = 0
         for ids, imgs in tqdm(loader):
+            #print(imgs.size)
+            if (type(imgs)==list):
+                continue
+            if(i>10000):
+                break
             imgs = Variable(imgs.cuda(async=True), volatile=True)
             out = net(imgs)
 

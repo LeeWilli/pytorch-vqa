@@ -43,6 +43,9 @@ def run(net, loader, optimizer, tracker, train=False, prefix='', epoch=0):
 
     log_softmax = nn.LogSoftmax().cuda()
     for v, q, a, idx, q_len in tq:
+        if(type(v)!=torch.Tensor):
+            continue
+
         var_params = {
             'volatile': not train,
             'requires_grad': False,
@@ -52,6 +55,11 @@ def run(net, loader, optimizer, tracker, train=False, prefix='', epoch=0):
         a = Variable(a.cuda(async=True), **var_params)
         q_len = Variable(q_len.cuda(async=True), **var_params)
 
+        print("q: ", type(q))
+        print(q)
+        print("v: ",type(v))
+        print(v)
+        print(q_len)
         out = net(v, q, q_len)
         nll = -log_softmax(out)
         loss = (nll * a / 10).sum(dim=1).mean()
@@ -79,9 +87,10 @@ def run(net, loader, optimizer, tracker, train=False, prefix='', epoch=0):
         tq.set_postfix(loss=fmt(loss_tracker.mean.value), acc=fmt(acc_tracker.mean.value))
 
     if not train:
-        answ = list(torch.cat(answ, dim=0))
-        accs = list(torch.cat(accs, dim=0))
-        idxs = list(torch.cat(idxs, dim=0))
+        if(len(answ)>0):
+            answ = list(torch.cat(answ, dim=0))
+            accs = list(torch.cat(accs, dim=0))
+            idxs = list(torch.cat(idxs, dim=0))
         return answ, accs, idxs
 
 
@@ -99,6 +108,7 @@ def main():
     train_loader = data.get_loader(train=True)
     val_loader = data.get_loader(val=True)
 
+    #print("num_tokens",train_loader.dataset.num_tokens)
     net = nn.DataParallel(model.Net(train_loader.dataset.num_tokens)).cuda()
     optimizer = optim.Adam([p for p in net.parameters() if p.requires_grad])
 

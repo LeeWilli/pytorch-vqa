@@ -35,8 +35,18 @@ def get_loader(train=False, val=False, test=False):
 
 def collate_fn(batch):
     # put question lengths in descending order so that we can use packed sequences later
-    batch.sort(key=lambda x: x[-1], reverse=True)
-    return data.dataloader.default_collate(batch)
+    #print(len(batch))
+    batch1 = [x for x in batch if type(x[0])==torch.Tensor]
+    for x in batch1:
+        print("x:",type(x))
+        print(x)
+    #print(batch)
+    #print(len(batch1))
+    batch1.sort(key=lambda x: x[-1], reverse=True)
+    if(len(batch1)>0):
+        return data.dataloader.default_collate(batch1)
+    else:
+        return [],[],[],[],[]
 
 
 class VQA(data.Dataset):
@@ -59,7 +69,13 @@ class VQA(data.Dataset):
         # q and a
         self.questions = list(prepare_questions(questions_json))
         self.answers = list(prepare_answers(answers_json))
+        print(type(self.questions))
+        print(type(self.questions[0]))
+        print(self.questions[0])
         self.questions = [self._encode_question(q) for q in self.questions]
+        print("encoded type:",type(self.questions))
+        print("encoded type:", type(self.questions[0]))
+        print(self.questions[0])
         self.answers = [self._encode_answers(a) for a in self.answers]
 
         # v
@@ -87,6 +103,8 @@ class VQA(data.Dataset):
         with h5py.File(self.image_features_path, 'r') as features_file:
             coco_ids = features_file['ids'][()]
         coco_id_to_index = {id: i for i, id in enumerate(coco_ids)}
+        #for i, id in enumerate(coco_ids):
+            #print(id, i)
         return coco_id_to_index
 
     def _check_integrity(self, questions, answers):
@@ -134,6 +152,7 @@ class VQA(data.Dataset):
             # forks for multiple works, every child would use the same file object and fail
             # Having multiple readers using different file objects is fine though, so we just init in here.
             self.features_file = h5py.File(self.image_features_path, 'r')
+        #print(image_id)
         index = self.coco_id_to_index[image_id]
         dataset = self.features_file['features']
         img = dataset[index].astype('float32')
@@ -147,8 +166,11 @@ class VQA(data.Dataset):
         q, q_length = self.questions[item]
         a = self.answers[item]
         image_id = self.coco_ids[item]
-        v = self._load_image(image_id)
-        # since batches are re-ordered for PackedSequence's, the original question order is lost
+        try:
+            v = self._load_image(image_id)
+        except KeyError:
+            v = []
+       # since batches are re-ordered for PackedSequence's, the original question order is lost
         # we return `item` so that the order of (v, q, a) triples can be restored if desired
         # without shuffling in the dataloader, these will be in the order that they appear in the q and a json's.
         return v, q, a, item, q_length
@@ -228,9 +250,11 @@ class CocoImages(data.Dataset):
     def __getitem__(self, item):
         id = self.sorted_ids[item]
         path = os.path.join(self.path, self.id_to_filename[id])
-        img = Image.open(path).convert('RGB')
-
-        if self.transform is not None:
+        try:
+            img = Image.open(path).convert('RGB')
+        except OSError:
+            img = []
+        if self.transform is not None and img !=[]:
             img = self.transform(img)
         return id, img
 

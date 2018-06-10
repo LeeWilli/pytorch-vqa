@@ -21,7 +21,24 @@ def extract_vocab(iterable, top_k=None, start=0):
     # descending in count, then lexicographical order
     tokens = sorted(most_common, key=lambda x: (counter[x], x), reverse=True)
     vocab = {t: i for i, t in enumerate(tokens, start=start)}
-    return vocab
+    vocabi = {int(i): t for i, t in enumerate(tokens, start=start)}
+    return vocab, vocabi
+
+def extract_vocabi(iterable, top_k=None, start=0):
+    """ Turns an iterable of list of tokens into a vocabulary.
+        These tokens could be single answers or word tokens in questions.
+    """
+    all_tokens = itertools.chain.from_iterable(iterable)
+    counter = Counter(all_tokens)
+    if top_k:
+        most_common = counter.most_common(top_k)
+        most_common = (t for t, c in most_common)
+    else:
+        most_common = counter.keys()
+    # descending in count, then lexicographical order
+    tokens = sorted(most_common, key=lambda x: (counter[x], x), reverse=True)
+    ivocab = {i: t for i, t in enumerate(tokens, start=start)}
+    return ivocab
 
 
 def main():
@@ -36,8 +53,8 @@ def main():
     questions = data.prepare_questions(questions)
     answers = data.prepare_answers(answers)
 
-    question_vocab = extract_vocab(questions, start=1)
-    answer_vocab = extract_vocab(answers, top_k=config.max_answers)
+    question_vocab, question_vocabi = extract_vocab(questions, start=1)
+    answer_vocab, answer_vocabi = extract_vocab(answers, top_k=config.max_answers)
 
     vocabs = {
         'question': question_vocab,
@@ -45,6 +62,13 @@ def main():
     }
     with open(config.vocabulary_path, 'w') as fd:
         json.dump(vocabs, fd)
+
+    print(answer_vocabi)
+    vocabsi = {
+        'answeri': answer_vocabi,
+    }
+    with open(config.vocabularyi_path, 'w') as fd:
+        json.dump(vocabsi, fd)
 
 
 if __name__ == '__main__':
